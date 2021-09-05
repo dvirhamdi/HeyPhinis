@@ -39,7 +39,7 @@ def create_party(user, members=None):
 
 
 def join_party(owner):
-    parties[owner]["members"].append({"name": owner, "sid": connected_member[owner]["sid"]})
+    parties[owner]["members"].append({"name": owner, "sid": connected_members[owner]["sid"]})
 
 
 def disconnect_user_from_party(user):
@@ -72,7 +72,7 @@ def parse_action(command):
         db['ex'].send_message(title=f"You and {session['user']} are now friends!",
                               desc=f"{session['user']} has accepted your friend request.",
                               message_sender=session["user"], receiver=request, messagetype="ignore",
-                              action=action)
+                              action="")
         emit_to(requester, 'notif', '/comms', 'notification!')
 
     if command_name == "join_party":
@@ -240,13 +240,16 @@ def logout():
 
 def broadcast_userdiff():
     # update friends data
-    fr = db["ex"].get_friends(session["user"]).split(", ")
-    session["friend_data"] = {'online': [friend for friend in fr if friend in connected_members],
-                              'offline': [friend for friend in fr if friend not in connected_members]}
-# try:wtf
-    emit_to(session["user"], 'friend_data', "/comms", message=session["friend_data"])
-    emit('user_diff', {'amount': len(connected_members.keys()), 'names': [user for user in connected_members]},
-         namespace='/comms')
+    for user in connected_members:
+        fr = db["ex"].get_friends(user).split(", ")
+        session["friend_data"] = {'online': [friend for friend in fr if friend in connected_members],
+                                  'offline': [friend for friend in fr if friend not in connected_members]}
+        emit_to(user, 'friend_data', "/comms", message=session["friend_data"])
+
+    [emit_to(user, 'user_diff' , "/comms", {'amount': len(connected_members.keys()),
+                                            'names': [user for user in connected_members]})
+     for user in connected_members]
+    0
     print("Data:")
     print("\n".join([f"{name}, {int(time())-connected_members[name]['last ping']}" for name in connected_members]))
     print({'amount': len(connected_members.keys()), 'names': [user for user in connected_members]})
